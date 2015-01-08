@@ -24,5 +24,7 @@ set(LIBRARIES
 generate_arduino_firmware(window-temp-ctrl
     SRCS ${SOURCES}
     LIBS ${LIBRARIES}
-    BOARD pro5v328)
+    BOARD pro5v328
+    #    ARDLIBS "SPI"
+    )
 
