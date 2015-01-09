@@ -3,6 +3,9 @@
 #include "Arduino.h"
 #include "RF24.h"
 
+#define CMD_LIGHT_OFF   '0'
+#define CMD_LIGHT_ON    '1'
+
 RF24 radio(9, 10);
 byte addresses[][6] = {"1Node", "2Node"};
 
@@ -17,8 +20,6 @@ static int uart_putchar(char c, FILE* stream)
 
 static void radio_init()
 {
-    digitalWrite(2, HIGH);
-
     radio.begin();
     
     radio.setChannel(10);
@@ -43,8 +44,7 @@ void setup()
     stdout = &uartout;
     
     pinMode(2, OUTPUT);
-
-    pinMode(3, INPUT_PULLUP);
+    digitalWrite(2, LOW);
 
     radio_init();
 }
@@ -59,20 +59,20 @@ void loop()
         {
             byte data;
             radio.read(&data, 1);
-            if (data & 1)
+            if (CMD_LIGHT_OFF == data)
+            {
+                Serial.println("Recevied command to turn light off.");
                 digitalWrite(2, HIGH);
-            else
+            }
+            else if (CMD_LIGHT_ON == data)
+            {
+                Serial.println("Recevied command to turn light on.");
                 digitalWrite(2, LOW);
+            }
+            else
+            {
+                Serial.println("Received unknown command.");
+            }
         }
-    }
-    
-    bool curr_state = digitalRead(3);
-    if (curr_state != button_state)
-    {
-        button_state = curr_state;
-
-        radio.stopListening();
-        radio.write(button_state ? "0" : "1", 1);
-        radio.startListening();
     }
 }
