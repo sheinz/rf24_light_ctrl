@@ -51,6 +51,8 @@ void setup()
 
 void loop()
 {
+    static bool button_state = false;
+
     if (radio.available())
     {
         while (radio.available())
@@ -63,10 +65,14 @@ void loop()
                 digitalWrite(2, LOW);
         }
     }
-
-    if (!digitalRead(3))
+    
+    bool curr_state = digitalRead(3);
+    if (curr_state != button_state)
     {
-        radio_init();
-    }
+        button_state = curr_state;
 
+        radio.stopListening();
+        radio.write(button_state ? "0" : "1", 1);
+        radio.startListening();
+    }
 }
