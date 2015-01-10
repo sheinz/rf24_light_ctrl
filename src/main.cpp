@@ -8,6 +8,7 @@
 
 RF24 radio(9, 10);
 byte addresses[][6] = {"1Node", "2Node"};
+static bool light_on;
 
 static FILE uartout = {0};
 
@@ -23,8 +24,13 @@ static void radio_init()
     radio.begin();
     
     radio.setChannel(10);
-
+    
     radio.setPALevel(RF24_PA_MAX);
+    radio.setAutoAck(1);
+    radio.enableAckPayload();
+
+    // Set fixed payload size to 1 char + \0 to improve range
+    radio.setPayloadSize(2);
 
     radio.openWritingPipe(addresses[0]);
     radio.openReadingPipe(1, addresses[1]);
@@ -32,6 +38,8 @@ static void radio_init()
     radio.startListening();
 
     radio.printDetails();
+    Serial.print("Payload size: ");
+    Serial.println(radio.getPayloadSize());
 
     delay(1000);
 }
@@ -45,6 +53,7 @@ void setup()
     
     pinMode(2, OUTPUT);
     digitalWrite(2, LOW);
+    light_on = true;
 
     radio_init();
 }
@@ -53,26 +62,37 @@ void loop()
 {
     static bool button_state = false;
 
-    if (radio.available())
+    byte pipeNumber;
+
+    while (radio.available(&pipeNumber))
     {
-        while (radio.available())
+        byte recv_data;
+        radio.read(&recv_data, 1);
+        if (CMD_LIGHT_OFF == recv_data)
         {
-            byte data;
-            radio.read(&data, 1);
-            if (CMD_LIGHT_OFF == data)
-            {
-                Serial.println("Recevied command to turn light off.");
-                digitalWrite(2, HIGH);
-            }
-            else if (CMD_LIGHT_ON == data)
-            {
-                Serial.println("Recevied command to turn light on.");
-                digitalWrite(2, LOW);
-            }
-            else
-            {
-                Serial.println("Received unknown command.");
-            }
+            digitalWrite(2, HIGH);
+            light_on = false;
+        }
+        else if (CMD_LIGHT_ON == recv_data)
+        {
+            digitalWrite(2, LOW);
+            light_on = true;
+        }
+
+        byte ack_data = (light_on) ? CMD_LIGHT_ON : CMD_LIGHT_OFF;
+        radio.writeAckPayload(pipeNumber, &ack_data, 1);
+
+        if (CMD_LIGHT_OFF == recv_data)
+        {
+            Serial.println("Recevied command to turn light off.");
+        }
+        else if (CMD_LIGHT_ON == recv_data)
+        {
+            Serial.println("Recevied command to turn light on.");
+        }
+        else
+        {
+            Serial.println("Received unknown command.");
         }
     }
 }
